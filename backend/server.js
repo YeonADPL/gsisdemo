@@ -104,7 +104,9 @@ app.post('/api/activate', async (req, res) => {
             httpsAgent
         });
         
-        res.json(response.data);
+        const activateResponseFromBE = res.json(response.data);
+	//console.log("ActivateResponseFromBE is ", activateResponseFromBE);
+	
     } catch (error) {
         console.error("Activate Job Request Error:", error.message);
         res.status(500).json({ error: error.message });
@@ -119,7 +121,8 @@ app.get('/api/status/:jobId', async (req, res) => {
             headers: getHeaders({ 'JobID': jobId }),
             httpsAgent
         });
-        res.json(response.data);
+        const scanResult = res.json(response.data);
+	    //console.log("Scan Result : ", scanResult);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -272,6 +275,7 @@ app.post('/api/download', async (req, res) => {
 
     } catch (error) {
         console.error("❌ Chunked Download Process Failed:", error.message);
+        console.error("❌ Error from Download:", error);
         res.status(500).json({ error: "Failed to piece together file download", details: error.message });
     }
 });

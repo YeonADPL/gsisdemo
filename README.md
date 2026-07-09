@@ -8,6 +8,7 @@ To get started, please run the following commands after downloading the files
 
 ```
 npm install
+npm install @zip.js/zip.js
 npm run dev
 ```
 
@@ -15,5 +16,6 @@ npm run dev
 
 ```
 npm install
+npm inistall axios
 node server.js
 ```

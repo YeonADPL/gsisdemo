@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DownloadOriginButton from './DownloadOriginButton';
-
+// 1. Import zip.js components
+import { ZipReader, BlobReader, BlobWriter } from '@zip.js/zip.js';
 const API_BASE_URL = 'http://localhost:3001/api';
 
 function App() {
@@ -14,6 +15,50 @@ function App() {
     setLogs((prev) => [...prev, `${new Date().toLocaleTimeString()} - ${message}`]);
   };
 
+  // 2. NEW: Local validation utility 
+	const validateZipPassword = async (targetFile, zipPassword) => {
+		// If it's not a ZIP archive, pass validation checks automatically
+		if (!targetFile || !targetFile.name.endsWith('.zip')) {
+			return { isValid: true }; 
+		}
+
+		const reader = new ZipReader(new BlobReader(targetFile), { password: zipPassword });
+		try {
+			const entries = await reader.getEntries();
+			// Locate the first actual file item inside the archive
+			const testEntry = entries.find(entry => !entry.directory);
+
+			if (testEntry) {
+				// Check if the entry requires authentication flags
+				if (testEntry.encrypted && !zipPassword) {
+					await reader.close();
+					return {
+						isValid: false,
+						message: "This ZIP file is encrypted. Please enter a password to proceed."
+					};
+				}
+
+				// Use standard BlobWriter with checkPasswordOnly optimization
+				await testEntry.getData(new BlobWriter(), { checkPasswordOnly: true });
+			}
+
+			await reader.close();
+			return { isValid: true };
+		} catch (error) {
+			await reader.close();
+			const errorMsg = error.message.toLowerCase();
+
+			// Intercept decryption signature mismatches safely
+			if (errorMsg.includes('password') || errorMsg.includes('encrypted') || errorMsg.includes('decrypt')) {
+				return {
+					isValid: false,
+					message: "Incorrect Password. Please double check."
+				};
+			}
+			return { isValid: false, message: "Could not read ZIP archive structure. File may be corrupt." };
+		}
+	};
+
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
   const handleProcess = async () => {
@@ -23,6 +68,18 @@ function App() {
     setLogs([]);
     setDownloadInfo(null);
     let currentJobId = null;
+
+    // 3. NEW: Validate password BEFORE calling any API endpoints
+    addLog("Checking ZIP archive integrity and security parameters...");
+    const verification = await validateZipPassword(file, password);
+    
+    if (!verification.isValid) {
+      addLog(`Validation Interrupted: ${verification.message}`);
+      alert(verification.message);
+      setIsProcessing(false);
+      return; // Stop the execution loop early
+    }
+    addLog("Archive verification clear. Initiating upload pipeline...");
 
     try {
       // Step 1: Validate Key
@@ -54,7 +111,7 @@ function App() {
 
       // Step 4: Activate Job
       addLog("Activating job...");
-      await fetch(`${API_BASE_URL}/activate`, {
+      const activateResponse = await fetch(`${API_BASE_URL}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -63,6 +120,9 @@ function App() {
         })
       });
 
+      if (!activateResponse.ok) throw new Error(`activateResponse Status : ${activateResponse.status}`);
+      const activateResult = await activateResponse.json();
+	console.log("Activate Result : ", activateResult);
 	// Step 5: Poll Scan Status
       addLog("Scanning in progress...");
       let isDone = false;
@@ -101,6 +161,7 @@ function App() {
 
 } catch (error) {
       addLog(`ERROR: ${error.message}`);
+      console.log("Error :", error);
     } finally {
       setIsProcessing(false);
     }
@@ -117,7 +178,9 @@ function App() {
       });
 
       if (!res.ok) {
-	console.log("handleDownload not ok");
+	console.log("handleDownload not ok", res.status);
+	const dlerrordata = await res.json();
+	console.log("handleDownload Error Data : ", dlerrordata);
 	 throw new Error("Download failed");
       }
 
@@ -153,7 +216,7 @@ function App() {
       {/* NEW: Password input element */}
       <div style={{ marginBottom: '1rem' }}>
         <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 'bold' }}>
-          ZIP Password (Optional):
+          Password (For Zip File only):
         </label>
         <input 
           type="password"
