@@ -122,7 +122,7 @@ function App() {
 
       if (!activateResponse.ok) throw new Error(`activateResponse Status : ${activateResponse.status}`);
       const activateResult = await activateResponse.json();
-	console.log("Activate Result : ", activateResult);
+	//console.log("Activate Result : ", activateResult);
 	// Step 5: Poll Scan Status
       addLog("Scanning in progress...");
       let isDone = false;
@@ -178,9 +178,9 @@ function App() {
       });
 
       if (!res.ok) {
-	console.log("handleDownload not ok", res.status);
+	console.log("handleDownload not ok, status code : ", res.status);
 	const dlerrordata = await res.json();
-	console.log("handleDownload Error Data : ", dlerrordata);
+	//console.log("handleDownload Error Data : ", dlerrordata);
 	 throw new Error("Download failed");
       }
 
@@ -203,7 +203,7 @@ function App() {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      <h2>SASA GSIS Sanitizer</h2>
+      <h2>SASA GSIS Sanitizer Demo</h2>
       
       <div style={{ marginBottom: '1rem' }}>
         <input 

@@ -79,7 +79,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// 4. Activate Job (UPDATED with F-Password Header Formatting)
+// 4. Activate Job 
 app.post('/api/activate', async (req, res) => {
     const { jobId, password } = req.body;
     

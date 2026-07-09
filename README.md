@@ -1,6 +1,8 @@
 # SASA GSIS Demo
 
-This source code aims to demonstrate a basic web application that allows file upload to SASA Server for Anti-Virus and CDR Scanning.
+This source code is intended solely to demonstrate a basic web application that uploads files to SASA GSIS Server for Anti-Virus and CDR Scanning.
+
+**It is not designed or intended for production use.**
 
 To get started, please run the following commands after downloading the files
 
