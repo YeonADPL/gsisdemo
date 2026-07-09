@@ -5,6 +5,7 @@ const API_BASE_URL = 'http://localhost:3001/api';
 
 function App() {
   const [file, setFile] = useState(null);
+  const [password, setPassword] = useState(''); // New state for ZIP password
   const [logs, setLogs] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [downloadInfo, setDownloadInfo] = useState(null);
@@ -56,7 +57,10 @@ function App() {
       await fetch(`${API_BASE_URL}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: currentJobId })
+        body: JSON.stringify({ 
+          jobId: currentJobId,
+          password: password // Sent to backend proxy
+        })
       });
 
 	// Step 5: Poll Scan Status
@@ -77,7 +81,6 @@ function App() {
           
           const scanLog = statusData.ScansLogArr && statusData.ScansLogArr[0];
           if (scanLog) {
-            // Prioritize OutputFileName as requested by the manual documentation
             finalFileName = scanLog.OutputFileName || scanLog.UniqueFileName || scanLog.FileName;
             addLog(`Scan complete! Selected target file: ${finalFileName}`);
           } else {
@@ -128,6 +131,7 @@ function App() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      addLog("Scanned file saved to browser downloads!");
     } catch (error) {
 	console.log("Download Catch Error : ", error.message);
       addLog(`Download ERROR: ${error.message}`);
@@ -136,13 +140,28 @@ function App() {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      <h2>SASA GSIS Scanner</h2>
+      <h2>SASA GSIS Sanitizer</h2>
       
       <div style={{ marginBottom: '1rem' }}>
         <input 
           type="file" 
           onChange={(e) => setFile(e.target.files[0])} 
           disabled={isProcessing}
+        />
+      </div>
+
+      {/* NEW: Password input element */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 'bold' }}>
+          ZIP Password (Optional):
+        </label>
+        <input 
+          type="password"
+          placeholder="Enter password if ZIP is encrypted"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isProcessing}
+          style={{ width: '100%', padding: '0.4rem', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
         />
       </div>
 

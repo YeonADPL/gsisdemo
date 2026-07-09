@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -12,8 +13,8 @@ app.use(express.json());
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Configuration based on your curl commands
-const API_BASE = 'https://192.168.255.211/scanner.svc/v4';
-const GS_KEY = '3a609c9e-3dd8-4183-b3ad-3849a005496d';
+const API_BASE = process.env.API_BASE;
+const GS_KEY = process.env.GS_KEY;
 
 // Create an HTTPS agent to ignore self-signed certificate errors (equivalent to curl -k)
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
@@ -78,21 +79,34 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// 4. Activate Job
+// 4. Activate Job (UPDATED with F-Password Header Formatting)
 app.post('/api/activate', async (req, res) => {
-    const { jobId } = req.body;
+    const { jobId, password } = req.body;
+    
     try {
+        // Base activation headers required by the framework
+        const activationHeaders = {
+            'ProfileID': '3',
+            'AppInfo': 'ReactApp',
+            'JobID': jobId,
+            'Content-Length': '0'
+        };
+
+        // If a password was provided in the frontend, serialize it as an array string
+        if (password && password.trim() !== '') {
+            // Turning "123456" into '["123456"]' to comply with scanner contracts
+            activationHeaders['F-Password'] = JSON.stringify([password]);
+            console.log(`🔑 Appending encrypted payload key to activation: ${activationHeaders['F-Password']}`);
+        }
+
         const response = await axios.post(`${API_BASE}/ActivateJob/${jobId}`, null, {
-            headers: getHeaders({
-                'ProfileID': '3',
-                'AppInfo': 'ReactApp',
-                'JobID': jobId,
-                'Content-Length': '0'
-            }),
+            headers: getHeaders(activationHeaders),
             httpsAgent
         });
+        
         res.json(response.data);
     } catch (error) {
+        console.error("Activate Job Request Error:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
@@ -111,38 +125,6 @@ app.get('/api/status/:jobId', async (req, res) => {
     }
 });
 
-// 6. Download File
-//app.post('/api/download', async (req, res) => {
-//    const { jobId, fileName } = req.body;
-//    try {
-//	console.log("Starting of /api/download");
-//	console.log("Job ID : ", jobId);
-//	console.log("fileName : ", fileName);
-//
-//// Using the comprehensive config block to force strict HTTP presentation
-//        const response = await axios({
-//            method: 'POST',
-//            url: `${API_BASE}/download/file/${jobId}`,
-//            data: '', // CRUCIAL: Empty string instead of null forces Axios to compute and preserve Content-Length
-//            headers: {
-//                'GS-Key': GS_KEY,
-//                'JobID': jobId,
-//                'FileName': fileName,
-//                'Content-Length': '0',
-//                'Accept': '*/*' // Explicitly matching curl to bypass IIS endpoint filtering
-//            },
-//            httpsAgent,
-//            responseType: 'stream' // Kept intact to stream the binary PDF back to React
-//        });
-//
-//        // Set headers so the browser triggers a download
-//        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-//        response.data.pipe(res);
-//    } catch (error) {
-//        console.log("Download File Error : ", error.message);
-//        res.status(500).json({ error: error.message });
-//    }
-//});
 
 // ==========================================
 // UPGRADED: Helper function to fetch standard scanned file chunks
