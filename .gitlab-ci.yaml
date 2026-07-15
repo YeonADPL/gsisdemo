@@ -1,0 +1,145 @@
+default:
+  image: maven:3.9.9-eclipse-temurin-11-alpine
+  #before_script:
+  #  - curl -L ${CLT_URL} -o clt.jar
+  tags:
+    - docker
+
+stages:
+  - build
+  - test
+  - run
+  #- SCA
+  - SAST
+  #- DAST
+  - deploy
+
+variables:
+  MIN_SECURITY_SAST: "1"
+  MIN_SECURITY_DAST: "5"
+  MIN_SECURITY_SCA: "10"
+  LANGUAGES: JAVASCRIPT,CONFIG
+  SCA_SCAN_TYPE: sbom
+
+mvn:build:
+  stage: build
+  before_script:
+    - apk update && apk add zip
+  script:
+    - mvn compile
+    - zip -r app.zip ./target/
+  artifacts:
+    paths:
+      - app.zip
+      
+mvn:test:
+  stage: test
+  needs:
+    - job: mvn:build
+  script:
+    - mvn test
+
+mvn:run:
+  stage: run
+  needs:
+    - job: mvn:test
+  script:
+    - echo "Dummy actions for deploy and run a service." 
+
+deploy:env:
+  stage: deploy
+  dependencies: []
+  script: 
+    - echo "You can safely deploy the application."
+
+SAST:start_scan:
+  stage: SAST
+  needs:
+    - mvn:build
+  script:
+    - >
+      java -jar clt.jar 
+      -disableSsl
+      -rest ${API_V1_URL}
+      -token ${TOKEN} sastStart
+      -type FILE
+      -path app.zip
+      -name ${CI_PROJECT_NAME}:${CI_COMMIT_REF_SLUG}
+      -languages ${LANGUAGES} > metainf
+    - echo "SAST_PROJECT_UUID=$(grep -oE "Project UUID.*" metainf | cut -d ' ' -f3)" > SAST.env
+    - echo "SAST_SCAN_UUID=$(grep -oE "Scan UUID.*" metainf | cut -d ' ' -f3)" >> SAST.env
+  artifacts:
+    reports:
+      dotenv: SAST.env
+
+SAST:status_scan:
+  stage: SAST
+  timeout: 1 hours 30 minutes
+  needs: 
+    - SAST:start_scan
+  script:
+    - >
+      while [[ -z ${PROGRESS}  ]];
+      do
+        PROGRESS=$(
+        java -jar clt.jar \
+          -disableSsl \
+          -rest ${API_V1_URL} \
+          -token ${TOKEN} sastStatus \
+          -scanid ${SAST_SCAN_UUID} |awk "/COMPLETE/");
+        echo "Waiting for the COMPLETE status...";
+        sleep 10;
+      done
+    - echo "Scan successfully finished!"
+    
+SAST:report:
+  stage: SAST
+  needs: 
+    - SAST:status_scan
+    - SAST:start_scan
+  script:
+    - >
+      java -jar clt.jar 
+      -disableSsl
+      -rest ${API_V1_URL}
+      -token ${TOKEN} sastExport
+      -project ${SAST_PROJECT_UUID}
+      -scans ${SAST_SCAN_UUID}
+      -path .
+      -general.format ${REPORT_TYPE}
+      -general.locale ${LANG}
+  parallel:
+    matrix:
+      - REPORT_TYPE: PDF
+        FILE_TYPE: "*.pdf"
+        LANG: en
+      - REPORT_TYPE: CSV
+        FILE_TYPE: "*.zip"
+        LANG: en
+  artifacts:
+    name: "SAST-report-${LANG}-${CI_PIPELINE_ID}"
+    paths:
+      - ${FILE_TYPE}
+
+SAST:check_rate_scan:
+  stage: SAST
+  needs: 
+    - SAST:status_scan
+    - SAST:start_scan
+  script:
+    - >  
+      SECURITY=$(
+      java -jar clt.jar \
+        -disableSsl \
+        -rest ${API_V1_URL} \
+        -token ${TOKEN} sastSecurity \
+        -scanid ${SAST_SCAN_UUID} | awk '/Security:/{print $7}')
+    - >
+      if [[ $(bc <<<  "${SECURITY} < ${MIN_SECURITY_SAST}") -eq 1 ]];
+      then
+        echo "Your rate is less than necessary ${MIN_SECURITY_SAST}";
+        exit 1;
+      else
+        echo "You've passed the check!";
+      fi
+
