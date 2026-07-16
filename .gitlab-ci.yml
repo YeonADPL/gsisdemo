@@ -68,6 +68,7 @@ deploy:env:
     - echo "You can safely deploy the application."
 
 SAST:start_scan:
+  image: maven:3.9.9-eclipse-temurin-11-alpine
   stage: SAST
   needs:
     - jvs:build
