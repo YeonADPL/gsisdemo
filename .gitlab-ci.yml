@@ -28,14 +28,21 @@ jvs:build:
     - apk update && apk add zip
   script:
     - echo "Installing NPM dependencies"
+    - cd frontend/react
     - npm install
+    - npm install @zip.js/zip.js
     - echo "Building React application..."
     # This usually creates a 'build/' or 'dist/' directory
     - npm run build 
     - echo "Packaging source code for DerScanner SAST..."
+    - cd ../..
+    - cd backend
+    - npm install
+    - npm install axios
+    - cd ..
     # We zip the source code for the scanner. 
     # CRITICAL: Exclude node_modules and .git to keep the file size small!
-    - zip -r app.zip . -x "node_modules/*" -x ".git/*" -x "build/*"
+    - zip -r app.zip . -x "frontend/react/node_modules/*" -x ".git/*" -x "frontend/react/dist/*" -x "backend/node_modules/*"
   artifacts:
     paths:
       - app.zip
