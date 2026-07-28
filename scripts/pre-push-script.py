@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-import system
+import sys
 import time
 import requests
 import shutil
+from requests.exceptions import HTTPError
 
 from dotenv import load_dotenv
 load_dotenv("../.env")
@@ -75,7 +76,7 @@ def create_ds_project():
         print("No Error at all")
         if (create_ds_project_response.status_code == 200):
             print("Created DerScanner Project successfully")
-            return create_ds_project_response["uuid"]
+            return create_ds_project_response.json()["uuid"]
         else:
             print(f"Something wrong with the project creation, response status code : {create_ds_project_response.status_code}")
             sys.exit(1)
@@ -188,21 +189,53 @@ def run_sast(projectuuid):
     
     scannedProject = '../../testGL'
     zip_name = 'scanned'
-    zip_path = shutil.make_archive(base_name=zip_name, format='zip', root_dir=scannedProject)
-    zip_filename = zip_name + '.zip'
-
-    # Open the ZIP file in binary read mode ('rb')
-    # Format: 'form_field_name': ('filename', file_object, 'content_type')
-    with open(zip_filename, 'rb') as f:
-        files = {
-            'file': (zip_filename, f, 'application/zip')
-        }
+    try:
+        zip_path = shutil.make_archive(base_name=zip_name, format='zip', root_dir=scannedProject)
+        zip_filename = zip_name + '.zip'
         
-        # Execute the request inside the 'with' block so the file remains open while uploading
-        response = requests.post(
-            sast_scan_url, 
-            headers=request_headers, 
-            #cookies=cookies, 
-            data=data, 
-            files=files
-        )
+        # Open the ZIP file in binary read mode ('rb')
+        # Format: 'form_field_name': ('filename', file_object, 'content_type')
+        with open(zip_filename, 'rb') as f:
+            files = {
+                'file': (zip_filename, f, 'application/zip')
+            }
+            
+            # Execute the request inside the 'with' block so the file remains open while uploading
+            sast_response = requests.post(
+                sast_scan_url, 
+                headers=request_headers, 
+                #cookies=cookies, 
+                data=data, 
+                files=files
+            )
+            # Return Response :{ "projUuid": "string",  "scanUuid": "string"}
+    except Exception as e:
+        print("SAST Error : ", e)
+    else:
+        print("SAST Triggered Successfully")
+        return sast_response.json()
+
+def check_sast_status(projUuid):
+    print("Checking SAST Status...")
+    sast_status_url = API_BASE_URL + f"/projects/{projUuid}/scans/last"
+    while True:
+        try:
+            s_request = requests.get(sast_status_url, headers=request_headers)
+            s_request.raise_for_status()
+            status = s_request.json()["status"]
+            if status in ("PENDING", "SOME", "QUEUE"):
+                print("SAST Scanning is still pending.")
+                for _ in range(10):
+                    print(".", end="",flush=True)
+                    time.sleep(1)
+                continue
+            elif status == "COMPLETE":
+                print("SAST Scanning is Completed")
+                break
+            else:
+                print(f"SAST Status : {status}, exit")
+                sys.exit(1)
+        except HTTPError as httperror:
+            print("HTTP Error occured: ", httperror)
+        except Exception as e:
+            print("SAST Exception Error :", e)
