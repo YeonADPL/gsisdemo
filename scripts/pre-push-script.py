@@ -69,8 +69,12 @@ def create_ds_project():
 }
     try:
         create_ds_project_response = requests.post(url, params=request_params, headers=request_headers, files=form_data)
+        create_ds_project_response.raise_for_status()
+    except HTTPError as httperror:
+        print("DS Project Creation HTTP Error : ", httperror)
+        sys.exit(1)
     except Exception as e:
-        print("Error :", e)
+        print("DS Project Creation Except Error :", e)
         sys.exit(1)
     else:
         print("No Error at all")
@@ -88,7 +92,7 @@ def run_sast(projectuuid):
     run_sast_request_headers = {
     'Accept': 'application/json',
     'Accept-Language': 'en-US,en;q=0.9',
-    'Authorization': f'Bearer {token}',
+    'Authorization': f'Bearer {DS_API_TOKEN }',
     'Connection': 'keep-alive',
     'Origin': 'http://localhost',
     'Referer': 'http://localhost/projects/f14bcb83-83f6-43c9-9896-c67a56ab443f/scans/new',
@@ -208,9 +212,15 @@ def run_sast(projectuuid):
                 data=data, 
                 files=files
             )
+            sast_response.raise_for_status()
+
             # Return Response :{ "projUuid": "string",  "scanUuid": "string"}
+    except HTTPError as httperror:
+        print("SAST Trigger HTTP Error :", httperror)
+        sys.exit(1)
     except Exception as e:
-        print("SAST Error : ", e)
+        print("SAST Trigger Exception Error : ", e)
+        sys.exit(1)
     else:
         print("SAST Triggered Successfully")
         return sast_response.json()
@@ -223,6 +233,7 @@ def check_sast_status(projUuid):
             s_request = requests.get(sast_status_url, headers=request_headers)
             s_request.raise_for_status()
             status = s_request.json()["status"]
+            scanUUID = s_request.json()["uuid"]
             if status in ("PENDING", "SOME", "QUEUE"):
                 print("SAST Scanning is still pending.")
                 for _ in range(10):
@@ -231,11 +242,43 @@ def check_sast_status(projUuid):
                 continue
             elif status == "COMPLETE":
                 print("SAST Scanning is Completed")
+                return scanUUID
                 break
             else:
                 print(f"SAST Status : {status}, exit")
                 sys.exit(1)
         except HTTPError as httperror:
-            print("HTTP Error occured: ", httperror)
+            print("Check SAST status HTTP Error occured: ", httperror)
         except Exception as e:
-            print("SAST Exception Error :", e)
+            print("Check SAST status SAST Exception Error :", e)
+
+def check_compact_scan(scanUUID):
+    check_compact_scan_url = API_BASE_URL + f"/scans/{scanUUID}/compact"
+    print("Getting Compact Scan Result...")
+    try:
+        compact_scan_request = requests.get(check_compact_scan_url, headers=request_headers)
+        compact_scan_request.raise_for_status()
+        result = compact_scan_request.json()
+        critical = result["critical"]
+        medium = result["medium"]
+        print(f"Critical Vunerabilities: {critical}, Medium Vunerabilities: {medium}")
+        if critical >0 or medium > 0:
+            print("There are serious vulnerabilities")
+            sys.exit(1)
+        else:
+            print("Congratulations ! No Serious Vunerability !!!")
+            sys.exit(0)
+    except HTTPError as httperror:
+        print("Check Compact Scan HTTP Error: ", httperror)
+    except Exception as e:
+        print("Check Compact Scan Exception : ", e)
+
+def main():
+    print("Start the Python Script to check the source code before pushing to Remote Repository")
+    projectUUID = create_ds_project()
+    triggerSAST = run_sast(projectUUID)
+    scanUUID = check_sast_status(triggerSAST["projUuid"])
+    check_compact_scan(scanUUID)
+
+if __name__ == "__main__":
+    main()
