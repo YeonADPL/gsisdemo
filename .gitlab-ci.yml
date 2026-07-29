@@ -1,14 +1,14 @@
 default:
-  #image: maven:3.9.9-eclipse-temurin-11-alpine
-  image: node:24-alpine
+  image: maven:3.9.9-eclipse-temurin-11-alpine
+  #image: node:24-alpine
   #before_script:
   #  - curl -L ${CLT_URL} -o clt.jar
   tags:
     - docker
 
-workflow:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#workflow:
+#  rules:
+#    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 stages:
   - build
@@ -30,6 +30,8 @@ jvs:build:
   stage: build
   before_script:
     - apk update && apk add zip
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - echo "Installing NPM dependencies"
     - cd frontend/react
@@ -55,6 +57,8 @@ jvs:test:
   stage: test
   needs:
     - job: jvs:build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - echo "dummy test"
 
@@ -62,6 +66,8 @@ jvs:run:
   stage: run
   needs:
     - job: jvs:test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - echo "Dummy actions for deploy and run a service." 
 
@@ -76,8 +82,8 @@ SAST:start_scan:
   stage: SAST
   needs:
     - jvs:build
-  #rules:
-  #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - >
       java -jar clt.jar 
@@ -99,6 +105,8 @@ SAST:status_scan:
   timeout: 1 hours 30 minutes
   needs: 
     - SAST:start_scan
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - >
       while [[ -z ${PROGRESS}  ]];
@@ -119,6 +127,8 @@ SAST:report:
   needs: 
     - SAST:status_scan
     - SAST:start_scan
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - >
       java -jar clt.jar 
@@ -148,6 +158,8 @@ SAST:check_rate_scan:
   needs: 
     - SAST:status_scan
     - SAST:start_scan
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - >  
       SECURITY=$(
