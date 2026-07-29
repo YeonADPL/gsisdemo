@@ -1,0 +1,10 @@
+repos:
+  # Local Hook: Your SAST/Analyzer gate
+  - repo: local
+    hooks:
+      - id: local-DerScanner-sast
+        name: Local DerScanner SAST
+        entry: ./scripts/pre-push-script.py
+        language: system
+        pass_filenames: false
+        always_run: true
