@@ -72,6 +72,8 @@ SAST:start_scan:
   stage: SAST
   needs:
     - jvs:build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - >
       java -jar clt.jar 
