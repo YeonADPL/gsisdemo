@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/athnb220004/Documents/testGL/scripts/virtualenv/bin
 
 import os
 import shutil
@@ -24,7 +24,10 @@ request_headers = {
 def create_ds_project():
     print("Creating DerScanner Project")
     create_project_url = API_BASE_URL + "/projects"
-    request_params = {"unique_name": "true"}
+    request_params = {
+        "unique_name": "true",
+        "agentId": "4d44bc44-b7c1-4f9d-afaa-e5a0603bbc17",
+    }
 
     form_data = {
         "applyTriage": (None, "false"),
