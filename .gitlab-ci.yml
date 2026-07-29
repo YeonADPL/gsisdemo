@@ -74,6 +74,8 @@ jvs:run:
 deploy:env:
   stage: deploy
   dependencies: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script: 
     - echo "You can safely deploy the application."
 
@@ -96,6 +98,8 @@ SAST:start_scan:
       -languages ${LANGUAGES} > metainf
     - echo "SAST_PROJECT_UUID=$(grep -oE "Project UUID.*" metainf | cut -d ' ' -f3)" > SAST.env
     - echo "SAST_SCAN_UUID=$(grep -oE "Scan UUID.*" metainf | cut -d ' ' -f3)" >> SAST.env
+    - echo SAST.env
+    - echo ${API_V1_URL}
   artifacts:
     reports:
       dotenv: SAST.env
