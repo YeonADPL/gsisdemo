@@ -169,7 +169,7 @@ SAST:check_compact_scan:
   before_script:
     - pip install -r ${CI_PROJECT_DIR}/scripts/requirements.txt
   script:
-    - python3 check_compact_scan.py
+    - python3 ${CI_PROJECT_DIR}/scripts/check_compact_scan.py
     - echo "Check Compact Scan Done !"
 # SAST:check_rate_scan:
 #   stage: SAST
