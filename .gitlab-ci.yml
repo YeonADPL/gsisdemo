@@ -159,19 +159,19 @@ SAST:report:
     paths:
       - ${FILE_TYPE}
 
-  SAST:check_compact_scan:
-    stage: SAST
-    image: node:24-bookworm-slim
-    needs:
-      - SAST: start_scan
-    rules:
-      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    before_script:
-      - apt-get update && apt-get install -y --no-install-recommends python3 #python3-pip
-      - pip install -r ${CI_PROJECT_DIR}/scripts/requirements.txt
-    script:
-      - python3 check_compact_scan.py
-      - echo "Check Compact Scan Done !"
+SAST:check_compact_scan:
+  stage: SAST
+  image: node:24-bookworm-slim
+  needs:
+    - SAST: start_scan
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends python3 #python3-pip
+    - pip install -r ${CI_PROJECT_DIR}/scripts/requirements.txt
+  script:
+    - python3 check_compact_scan.py
+    - echo "Check Compact Scan Done !"
 # SAST:check_rate_scan:
 #   stage: SAST
 #   image: maven:3.9.9-eclipse-temurin-11-alpine
