@@ -163,7 +163,7 @@ SAST:check_compact_scan:
   stage: SAST
   image: node:24-bookworm-slim
   needs:
-    - SAST: start_scan
+    - SAST:start_scan
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   before_script:
