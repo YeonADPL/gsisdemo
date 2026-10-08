@@ -21,3 +21,4 @@ npm install
 npm inistall axios
 node server.js
 ```
+## Test Auto-Scan from DS
